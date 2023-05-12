@@ -1,0 +1,5 @@
+local:
+  dialect: postgres
+  datasource: dbname=postgres user=postgres password=159753 sslmode=disable port=5432
+  dir: DataBaseImplement/migrations
+  table: DataBaseImplement/migrations
