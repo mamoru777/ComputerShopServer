@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package ComputerShopServer.gRPC;
+
+option go_package = "github.com/ComputerShopServer/pkg;userapi";
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {}
+}
+
+message CreateUserRequest {
+
+}
+
+message CreateUserResponse {}
+
