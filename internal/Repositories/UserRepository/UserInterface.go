@@ -1,6 +1,9 @@
 package UserRepository
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 type User struct {
 	Id       int64  `postgres:"id" gorm:"id;primaryKey"`
@@ -10,7 +13,17 @@ type User struct {
 	LastName string `postgres:"lastname" gorm:"lastname"`
 	SurName  string `postgres:"surname" gorm:"surname"`
 	Email    string `postgres:"email" gorm:"email"`
-	Avatar   byte   `postgres:"avatar" gorm:"avatar"`
+	Avatar   []byte `postgres:"avatar" gorm:"avatar"`
+}
+
+func (u *User) Validate() error {
+	if u.Login == "" {
+		return errors.New("Login required value")
+	}
+	if u.Password == "" {
+		return errors.New("Password required value")
+	}
+	return nil
 }
 
 type UserRepository interface {

@@ -1,7 +1,7 @@
 package DataBaseImplement
 
 import (
-	"ComputerShopServer/DataBaseImplement/Config"
+	"ComputerShopServer/internal/DataBaseImplement/Config"
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
