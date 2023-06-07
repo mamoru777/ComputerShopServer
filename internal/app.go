@@ -26,13 +26,13 @@ func Run(cfg Config.Config, config ConfigServ.Config) error {
 	s := grpc.NewServer()
 	userapi.RegisterUserServiceServer(s, serv)
 
-	l, err := net.Listen("tcp", config.GRPCAddr)
+	l, err := net.Listen("tcp", ":13999") //config.GRPCAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen tcp %s, %v", config.GRPCAddr, err)
 	}
 
 	go func() {
-		log.Printf("starting listening grpc server at %s", config.GRPCAddr)
+		log.Printf("starting listening grpc server at %s", "13999") //config.GRPCAddr)
 		if err := s.Serve(l); err != nil {
 			log.Fatalf("error service grpc server %v", err)
 		}

@@ -13,3 +13,4 @@ gen-user:
 		./${USER_API_PATH}/*.proto
 
 mkdir -p ${TRAINING_PROTO_OUT_DIR}
+

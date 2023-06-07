@@ -5,18 +5,18 @@ import (
 	"errors"
 )
 
-type User struct {
-	Id       int64  `postgres:"id" gorm:"id;primaryKey"`
-	Login    string `postgres:"login" gorm:"login"`
-	Password string `postgres:"password" gorm:"password"`
-	Name     string `postgres:"id" gorm:"name"`
-	LastName string `postgres:"lastname" gorm:"lastname"`
-	SurName  string `postgres:"surname" gorm:"surname"`
-	Email    string `postgres:"email" gorm:"email"`
-	Avatar   []byte `postgres:"avatar" gorm:"avatar"`
+type Usr struct {
+	ID       int64  `db:"id" gorm:"id;primaryKey;type:serial"`
+	Login    string `db:"login" gorm:"login"`
+	Password string `db:"password" gorm:"password"`
+	Name     string `db:"id" gorm:"name"`
+	LastName string `db:"lastname" gorm:"lastname"`
+	SurName  string `db:"surname" gorm:"surname"`
+	Email    string `db:"email" gorm:"email"`
+	Avatar   []byte `db:"avatar" gorm:"avatar"`
 }
 
-func (u *User) Validate() error {
+func (u *Usr) Validate() error {
 	if u.Login == "" {
 		return errors.New("Login required value")
 	}
@@ -27,9 +27,9 @@ func (u *User) Validate() error {
 }
 
 type UserRepository interface {
-	Create(ctx context.Context, u *User) error
-	Get(ctx context.Context, id int64) (*User, error)
+	Create(ctx context.Context, u *Usr) error
+	Get(ctx context.Context, id int64) (*Usr, error)
 	//List (ctx context.Context, )
-	Update(ctx context.Context, u *User) error
+	Update(ctx context.Context, u *Usr) error
 	Delete(ctx context.Context, id int64) error
 }

@@ -33,10 +33,10 @@ func New(userrep UserRepository.UserRepository) *UserService {
 //}
 
 func (us *UserService) CreateUser(ctx context.Context, request *userapi.CreateUserRequest) (*userapi.CreateUserResponse, error) {
-	model := UserRepository.User{
+	model := UserRepository.Usr{
 		Login:    request.Login,
 		Password: request.Password,
-		Name:     request.Lastname,
+		Name:     request.Name,
 		LastName: request.Lastname,
 		SurName:  request.Surname,
 		Email:    request.Email,
