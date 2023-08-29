@@ -6,11 +6,11 @@ import (
 	"ComputerShopServer/internal/DataBaseImplement/Config"
 	"ComputerShopServer/internal/Repositories/UserRepository"
 	"ComputerShopServer/internal/Services/UserService"
-	userapi "ComputerShopServer/pkg"
 	"fmt"
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,8 +23,10 @@ func Run(cfg Config.Config, config ConfigServ.Config) error {
 		return err
 	}
 	serv := UserService.New(UserRepository.New(db))
-	s := grpc.NewServer()
-	userapi.RegisterUserServiceServer(s, serv)
+	s := &http.Server{
+		Addr:    fmt.Sprintf("0.0.0.0:%d", cfg.Port),
+		Handler: UserService,
+	}
 
 	l, err := net.Listen("tcp", ":13999") //config.GRPCAddr)
 	if err != nil {

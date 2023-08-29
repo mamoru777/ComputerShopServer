@@ -1,15 +1,14 @@
 package UserService
 
 import (
+	"ComputerShopServer/internal/Repositories/Models"
 	"ComputerShopServer/internal/Repositories/UserRepository"
-	userapi "ComputerShopServer/pkg"
-	"context"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"encoding/json"
+	"github.com/gorilla/mux"
+	"net/http"
 )
 
 type UserService struct {
-	userapi.UnimplementedUserServiceServer
 	userrep UserRepository.UserRepository
 }
 
@@ -20,31 +19,34 @@ func New(userrep UserRepository.UserRepository) *UserService {
 	}
 }
 
-//type Service struct {
-//	userapi.UnimplementedUserServiceServer
-//	userservice *UserService
-//}
-//
-//func NewServ() *Service {
-//	usrep := UserRepository.UserRepository()
-//	return &Service{
-//		userservice: New(),
-//	}
-//}
+type CreateUserRequest struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
 
-func (us *UserService) CreateUser(ctx context.Context, request *userapi.CreateUserRequest) (*userapi.CreateUserResponse, error) {
-	model := UserRepository.Usr{
-		Login:    request.Login,
-		Password: request.Password,
-		Name:     request.Name,
-		LastName: request.Lastname,
-		SurName:  request.Surname,
-		Email:    request.Email,
-		Avatar:   request.Avatar,
+func (us *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
+	req := &CreateUserRequest{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
-	if err := model.Validate(); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	u := Models.Usr{
+		Login:    req.Login,
+		Password: req.Password,
+		Email:    req.Email,
 	}
-	us.userrep.Create(ctx, &model)
-	return &userapi.CreateUserResponse{}, nil
+	if err := us.userrep.Create(r.Context(), &u); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+
+}
+
+func (us *UserService) GetHandler() http.Handler {
+	router := mux.NewRouter()
+
+	router.HandleFunc("/user", us.CreateUser).Methods(http.MethodPost)
+	return router
 }
