@@ -19,6 +19,19 @@ func New(userrep UserRepository.UserRepository) *UserService {
 	}
 }
 
+func (us *UserService) GetHandler() http.Handler {
+	router := mux.NewRouter()
+
+	router.HandleFunc("/users", us.CreateUser).Methods(http.MethodPost)
+
+	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
+	method := handlers.AllowedMethods([]string{"POST"})
+	origins := handlers.AllowedOrigins([]string{"*"})*/
+
+	//return handlers.CORS(header, method, origins)(router)
+	return router
+}
+
 type CreateUserRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
@@ -42,11 +55,4 @@ func (us *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusCreated)
 
-}
-
-func (us *UserService) GetHandler() http.Handler {
-	router := mux.NewRouter()
-
-	router.HandleFunc("/user", us.CreateUser).Methods(http.MethodPost)
-	return router
 }
