@@ -5,6 +5,7 @@ import (
 	"ComputerShopServer/internal/Repositories/UserRepository"
 	"encoding/json"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
 )
 
@@ -23,7 +24,7 @@ func (us *UserService) GetHandler() http.Handler {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/users", us.CreateUser).Methods(http.MethodPost)
-
+	router.HandleFunc("/registration", us.GetUserByLogin).Methods(http.MethodGet)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -39,6 +40,7 @@ type CreateUserRequest struct {
 }
 
 func (us *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция создания пользователя")
 	req := &CreateUserRequest{}
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -55,4 +57,25 @@ func (us *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusCreated)
 
+}
+
+type UserCheck struct {
+	IsExist bool `json:"isExist"`
+}
+
+func (us *UserService) GetUserByLogin(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция получения пользователя по логину")
+	//vars := mux.Vars(r)
+	login := r.URL.Query().Get("login") //vars["login"]
+	e, err := us.userrep.GetByLogin(r.Context(), login)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(&UserCheck{
+		IsExist: e,
+	})
 }

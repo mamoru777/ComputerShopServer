@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"log"
 )
 
 type UserStorage struct {
@@ -33,4 +34,20 @@ func (r *UserStorage) Update(ctx context.Context, u *Models.Usr) error {
 
 func (r *UserStorage) Delete(ctx context.Context, id uuid.UUID) error {
 	return r.db.WithContext(ctx).Delete(&Models.Usr{ID: id}).Error
+}
+
+func (r *UserStorage) GetByLogin(ctx context.Context, login string) (bool, error) {
+	u := new(Models.Usr)
+	err := r.db.WithContext(ctx).Where("login = ?", login).First(&u).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Println("Запись логина не была найдена")
+			return false, nil
+		} else {
+			log.Println("Ошибка при выполнения запроса на получения логина", err)
+			return true, err
+		}
+	}
+	log.Println("Запись логина была найдена")
+	return true, nil
 }

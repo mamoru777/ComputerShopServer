@@ -6,7 +6,6 @@ import (
 	"ComputerShopServer/internal/Repositories/UserRepository"
 	"ComputerShopServer/internal/Services/UserService"
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -21,10 +20,10 @@ func Run(cfg Config.Config) error {
 	}
 	serv := UserService.New(UserRepository.New(db))
 	s := &http.Server{
-		Addr:    fmt.Sprintf(":13999"), //"0.0.0.0:%d", cfg.Port),
+		Addr:    ":13999", //"0.0.0.0:%d", cfg.Port),
 		Handler: serv.GetHandler(),
 	}
-
+	s.SetKeepAlivesEnabled(true)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
