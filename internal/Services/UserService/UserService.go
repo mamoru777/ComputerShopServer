@@ -4,6 +4,7 @@ import (
 	"ComputerShopServer/internal/Repositories/Models"
 	"ComputerShopServer/internal/Repositories/UserRepository"
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
@@ -26,6 +27,7 @@ func (us *UserService) GetHandler() http.Handler {
 	router.HandleFunc("/registration", us.CreateUser).Methods(http.MethodPost)
 	router.HandleFunc("/logincheck", us.GetUserByLogin).Methods(http.MethodGet)
 	router.HandleFunc("/emailcheck", us.GetUserByEmail).Methods(http.MethodGet)
+	router.HandleFunc("/autho", us.GetUserByLoginAndPassword).Methods(http.MethodGet)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -93,5 +95,27 @@ func (us *UserService) GetUserByLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(&UserCheck{
 		IsExist: e,
+	})
+}
+
+type UserLogin struct {
+	IsExist bool      `json:"isExist"`
+	Id      uuid.UUID `json:"id"`
+}
+
+func (us *UserService) GetUserByLoginAndPassword(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция получения пользователя по логину и паролю")
+	login := r.URL.Query().Get("login")
+	password := r.URL.Query().Get("password")
+	isExist, id, err := us.userrep.GetByLoginAndPassword(r.Context(), login, password)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(&UserLogin{
+		Id:      id,
+		IsExist: isExist,
 	})
 }
