@@ -23,8 +23,9 @@ func New(userrep UserRepository.UserRepository) *UserService {
 func (us *UserService) GetHandler() http.Handler {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/users", us.CreateUser).Methods(http.MethodPost)
-	router.HandleFunc("/registration", us.GetUserByLogin).Methods(http.MethodGet)
+	router.HandleFunc("/registration", us.CreateUser).Methods(http.MethodPost)
+	router.HandleFunc("/logincheck", us.GetUserByLogin).Methods(http.MethodGet)
+	router.HandleFunc("/emailcheck", us.GetUserByEmail).Methods(http.MethodGet)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -61,6 +62,21 @@ func (us *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 type UserCheck struct {
 	IsExist bool `json:"isExist"`
+}
+
+func (us *UserService) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	e, err := us.userrep.GetByEmail(r.Context(), email)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(&UserCheck{
+		IsExist: e,
+	})
 }
 
 func (us *UserService) GetUserByLogin(w http.ResponseWriter, r *http.Request) {

@@ -51,3 +51,19 @@ func (r *UserStorage) GetByLogin(ctx context.Context, login string) (bool, error
 	log.Println("Запись логина была найдена")
 	return true, nil
 }
+
+func (r *UserStorage) GetByEmail(ctx context.Context, email string) (bool, error) {
+	u := new(Models.Usr)
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Println("Запись почты не была найдена")
+			return false, nil
+		} else {
+			log.Println("Ошибка при выполнения запроса на получение почты", err)
+			return true, err
+		}
+	}
+	log.Println("Запись почты была найдена")
+	return true, nil
+}
