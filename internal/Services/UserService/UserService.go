@@ -4,11 +4,14 @@ import (
 	"ComputerShopServer/internal/DataBaseImplement/Config"
 	"ComputerShopServer/internal/Repositories/Models"
 	"ComputerShopServer/internal/Repositories/UserRepository"
+	"crypto/rand"
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"log"
+	"math/big"
 	"net/http"
+	"net/smtp"
 )
 
 type UserService struct {
@@ -26,10 +29,13 @@ func New(userrep UserRepository.UserRepository, config Config.Config) *UserServi
 func (us *UserService) GetHandler() http.Handler {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/registration", us.CreateUser).Methods(http.MethodPost)
-	router.HandleFunc("/logincheck", us.GetUserByLogin).Methods(http.MethodGet)
-	router.HandleFunc("/emailcheck", us.GetUserByEmail).Methods(http.MethodGet)
-	router.HandleFunc("/autho", us.GetUserByLoginAndPassword).Methods(http.MethodGet)
+	router.HandleFunc("/user/registration", us.CreateUser).Methods(http.MethodPost)
+	router.HandleFunc("/user/logincheck", us.GetUserByLogin).Methods(http.MethodGet)
+	router.HandleFunc("/user/emailcheck", us.GetUserByEmail).Methods(http.MethodGet)
+	router.HandleFunc("/user/autho", us.GetUserByLoginAndPassword).Methods(http.MethodGet)
+	router.HandleFunc("/user/confirmemail", us.ConfirmEmail).Methods(http.MethodGet)
+	router.HandleFunc("/user/sendconfirmcode", us.SendConfrimCode).Methods(http.MethodPost)
+
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -122,10 +128,87 @@ func (us *UserService) GetUserByLoginAndPassword(w http.ResponseWriter, r *http.
 	})
 }
 
-func (us *UserService) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
+type UserEmail struct {
+	email string `json:"email"`
+}
+
+func (us *UserService) SendConfrimCode(w http.ResponseWriter, r *http.Request) {
 	smtpServer := us.config.SmtpAdr
 	smtpPort := us.config.SmtpPort
 	senderEmail := us.config.SmtpSenderEmail
 	senderPassword := us.config.SmtpSenderPassword
-	recipientEmail :=
+
+	req := &UserEmail{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	recipientEmail := req.email
+	subject := "Подтверждение почты на ComputerShop"
+	newCode := generateRandomString(5)
+	body := "Код подтверждения\n" + newCode
+	message := []byte("Тема:" + subject + "\n" + body)
+
+	auth := smtp.PlainAuth("", senderEmail, senderPassword, smtpServer)
+	code, err := us.userrep.GetCode(r.Context(), recipientEmail)
+	if err != nil {
+		log.Println("Не удалось получить запись почты и кода", err)
+	}
+	ec := Models.EmailCode{
+		Email: recipientEmail,
+		Code:  newCode,
+	}
+	if code == "" {
+		us.userrep.CreateCode(r.Context(), &ec)
+	} else {
+		us.userrep.UpdateCode(r.Context(), &ec)
+	}
+	er := smtp.SendMail(smtpServer+":"+smtpPort, auth, senderEmail, []string{recipientEmail}, message)
+	if er != nil {
+		log.Println("Не удалось отправить код подтверждения", er)
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+type isMatch struct {
+	isMatch bool `json:"ismatch"`
+}
+
+func (us *UserService) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	email := r.URL.Query().Get("email")
+	codeFromEmail, err := us.userrep.GetCode(r.Context(), email)
+	if err != nil {
+		log.Println("Не удалось получить запись почты и кода", err)
+	}
+	if code == codeFromEmail {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(&isMatch{
+			isMatch: true,
+		})
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(&isMatch{
+			isMatch: false,
+		})
+	}
+}
+
+func generateRandomString(length int) string {
+	// доступные символы
+	chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	// создаем генератор случайных чисел
+	var result string
+	for i := 0; i < length; i++ {
+		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		result += string(chars[n.Int64()])
+	}
+
+	return result
 }

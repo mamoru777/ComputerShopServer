@@ -84,3 +84,27 @@ func (r *UserStorage) GetByLoginAndPassword(ctx context.Context, login string, p
 	log.Println("Запись пользователя была найдена")
 	return true, u.ID, nil
 }
+
+func (r *UserStorage) CreateCode(ctx context.Context, ec *Models.EmailCode) error {
+	return r.db.WithContext(ctx).Create(ec).Error
+}
+
+func (r *UserStorage) GetCode(ctx context.Context, email string) (string, error) {
+	ec := new(Models.EmailCode)
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&ec).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Println("Запись с почтой и кодом не была найдена")
+			return "", nil
+		} else {
+			log.Println("Ошибка при выполнении запроса на получение почты и кода", err)
+			return "", err
+		}
+	}
+	log.Println("Запись почты и кода была найдена")
+	return ec.Code, err
+}
+
+func (r *UserStorage) UpdateCode(ctx context.Context, ec *Models.EmailCode) error {
+	return r.db.WithContext(ctx).Save(ec).Error
+}

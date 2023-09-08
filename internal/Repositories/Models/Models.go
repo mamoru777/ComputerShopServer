@@ -16,6 +16,12 @@ type Usr struct {
 	Avatar   []byte    `json:"avatar" gorm:"avatar"`                                      //`db:"avatar" gorm:"avatar"`
 }
 
+type EmailCode struct {
+	ID    uuid.UUID `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	Email string    `json:"email" gorm:"email"`
+	Code  string    `json:"code" gorm:"gorm"`
+}
+
 func (u *Usr) Validate() error {
 	if u.Login == "" {
 		return errors.New("Login required value")
