@@ -1,6 +1,7 @@
 package UserService
 
 import (
+	"ComputerShopServer/internal/DataBaseImplement/Config"
 	"ComputerShopServer/internal/Repositories/Models"
 	"ComputerShopServer/internal/Repositories/UserRepository"
 	"encoding/json"
@@ -12,11 +13,12 @@ import (
 
 type UserService struct {
 	userrep UserRepository.UserRepository
+	config  Config.Config
 }
 
-func New(userrep UserRepository.UserRepository) *UserService {
+func New(userrep UserRepository.UserRepository, config Config.Config) *UserService {
 	return &UserService{
-
+		config:  config,
 		userrep: userrep,
 	}
 }
@@ -118,4 +120,12 @@ func (us *UserService) GetUserByLoginAndPassword(w http.ResponseWriter, r *http.
 		Id:      id,
 		IsExist: isExist,
 	})
+}
+
+func (us *UserService) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
+	smtpServer := us.config.SmtpAdr
+	smtpPort := us.config.SmtpPort
+	senderEmail := us.config.SmtpSenderEmail
+	senderPassword := us.config.SmtpSenderPassword
+	recipientEmail :=
 }

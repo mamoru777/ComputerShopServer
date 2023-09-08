@@ -18,7 +18,7 @@ func Run(cfg Config.Config) error {
 	if err != nil {
 		return err
 	}
-	serv := UserService.New(UserRepository.New(db))
+	serv := UserService.New(UserRepository.New(db), cfg)
 	s := &http.Server{
 		Addr:    ":13999", //"0.0.0.0:%d", cfg.Port),
 		Handler: serv.GetHandler(),
