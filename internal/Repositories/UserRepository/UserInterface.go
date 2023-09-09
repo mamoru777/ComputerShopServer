@@ -16,6 +16,6 @@ type UserRepository interface {
 	Update(ctx context.Context, u *Models.Usr) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	CreateCode(ctx context.Context, ec *Models.EmailCode) error
-	GetCode(ctx context.Context, email string) (string, error)
+	GetCode(ctx context.Context, email string) (bool, *Models.EmailCode, error)
 	UpdateCode(ctx context.Context, ec *Models.EmailCode) error
 }

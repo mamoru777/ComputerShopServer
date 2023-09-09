@@ -11,7 +11,6 @@ import (
 	"log"
 	"math/big"
 	"net/http"
-	"net/smtp"
 )
 
 type UserService struct {
@@ -34,7 +33,7 @@ func (us *UserService) GetHandler() http.Handler {
 	router.HandleFunc("/user/emailcheck", us.GetUserByEmail).Methods(http.MethodGet)
 	router.HandleFunc("/user/autho", us.GetUserByLoginAndPassword).Methods(http.MethodGet)
 	router.HandleFunc("/user/confirmemail", us.ConfirmEmail).Methods(http.MethodGet)
-	router.HandleFunc("/user/sendconfirmcode", us.SendConfrimCode).Methods(http.MethodPost)
+	router.HandleFunc("/user/sendconfirmcode", us.SendConfirmCode).Methods(http.MethodGet)
 
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
@@ -128,63 +127,84 @@ func (us *UserService) GetUserByLoginAndPassword(w http.ResponseWriter, r *http.
 	})
 }
 
-type UserEmail struct {
+/*type UserEmail struct {
 	email string `json:"email"`
-}
+}*/
 
-func (us *UserService) SendConfrimCode(w http.ResponseWriter, r *http.Request) {
-	smtpServer := us.config.SmtpAdr
-	smtpPort := us.config.SmtpPort
-	senderEmail := us.config.SmtpSenderEmail
-	senderPassword := us.config.SmtpSenderPassword
-
-	req := &UserEmail{}
+func (us *UserService) SendConfirmCode(w http.ResponseWriter, r *http.Request) {
+	//smtpServer := us.config.SmtpAdr
+	//smtpPort := us.config.SmtpPort
+	//senderEmail := us.config.SmtpSenderEmail
+	//senderPassword := us.config.SmtpSenderPassword
+	email := r.URL.Query().Get("email")
+	/*req := &UserEmail{}
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
-	}
-
-	recipientEmail := req.email
-	subject := "Подтверждение почты на ComputerShop"
+	}*/
+	log.Println(email)
+	recipientEmail := email
+	log.Println(recipientEmail)
+	//subject := "Подтверждение почты на ComputerShop"
 	newCode := generateRandomString(5)
-	body := "Код подтверждения\n" + newCode
-	message := []byte("Тема:" + subject + "\n" + body)
+	//body := "Код подтверждения\n" + newCode
+	//message := []byte("Тема:" + subject + "\n" + body)
 
-	auth := smtp.PlainAuth("", senderEmail, senderPassword, smtpServer)
-	code, err := us.userrep.GetCode(r.Context(), recipientEmail)
+	//auth := smtp.PlainAuth("", senderEmail, senderPassword, smtpServer)
+	isExist, ecFromBd, err := us.userrep.GetCode(r.Context(), recipientEmail)
 	if err != nil {
 		log.Println("Не удалось получить запись почты и кода", err)
 	}
-	ec := Models.EmailCode{
-		Email: recipientEmail,
-		Code:  newCode,
-	}
-	if code == "" {
-		us.userrep.CreateCode(r.Context(), &ec)
-	} else {
+	if isExist {
+		ec := Models.EmailCode{
+			ID:    ecFromBd.ID,
+			Email: recipientEmail,
+			Code:  newCode,
+		}
 		us.userrep.UpdateCode(r.Context(), &ec)
+	} else {
+		ec := Models.EmailCode{
+			Email: recipientEmail,
+			Code:  newCode,
+		}
+		us.userrep.CreateCode(r.Context(), &ec)
 	}
-	er := smtp.SendMail(smtpServer+":"+smtpPort, auth, senderEmail, []string{recipientEmail}, message)
+	/*er := smtp.SendMail(smtpServer+":"+smtpPort, auth, senderEmail, []string{recipientEmail}, message)
 	if er != nil {
 		log.Println("Не удалось отправить код подтверждения", er)
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		w.WriteHeader(http.StatusOK)
-	}
+	}*/
 }
 
-type isMatch struct {
-	isMatch bool `json:"ismatch"`
-}
+/*type isMatch struct {
+	isMatch bool `json:"isExist"`
+}*/
 
 func (us *UserService) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	email := r.URL.Query().Get("email")
-	codeFromEmail, err := us.userrep.GetCode(r.Context(), email)
+	_, ecFromBd, err := us.userrep.GetCode(r.Context(), email)
 	if err != nil {
 		log.Println("Не удалось получить запись почты и кода", err)
 	}
-	if code == codeFromEmail {
+	var same bool
+	log.Println("Код из бд", ecFromBd.Code)
+	log.Println("Код от пользователя", code)
+	if code == ecFromBd.Code {
+		log.Println("Коды совпадают")
+		same = true
+	} else {
+		log.Println("Коды не совпадают")
+		same = false
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(&UserCheck{
+		IsExist: same,
+	})
+	/*if code == ecFromBd.Code {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(&isMatch{
@@ -196,7 +216,7 @@ func (us *UserService) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(&isMatch{
 			isMatch: false,
 		})
-	}
+	}*/
 }
 
 func generateRandomString(length int) string {

@@ -89,20 +89,20 @@ func (r *UserStorage) CreateCode(ctx context.Context, ec *Models.EmailCode) erro
 	return r.db.WithContext(ctx).Create(ec).Error
 }
 
-func (r *UserStorage) GetCode(ctx context.Context, email string) (string, error) {
+func (r *UserStorage) GetCode(ctx context.Context, email string) (bool, *Models.EmailCode, error) {
 	ec := new(Models.EmailCode)
 	err := r.db.WithContext(ctx).Where("email = ?", email).First(&ec).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Println("Запись с почтой и кодом не была найдена")
-			return "", nil
+			return false, nil, nil
 		} else {
 			log.Println("Ошибка при выполнении запроса на получение почты и кода", err)
-			return "", err
+			return false, nil, err
 		}
 	}
 	log.Println("Запись почты и кода была найдена")
-	return ec.Code, err
+	return true, ec, err
 }
 
 func (r *UserStorage) UpdateCode(ctx context.Context, ec *Models.EmailCode) error {
