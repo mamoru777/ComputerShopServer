@@ -10,7 +10,7 @@ type Config struct {
 	PgPwd    string `env:"PG_PWD" envDefault:"159753"`
 
 	SmtpPort           string `env:"SMTP_PORT" envDefault:"587"`
-	SmtpAdr            string `env:"SMTP_ADR" envDefault:"smtp.mail.ru"`
-	SmtpSenderEmail    string `env:"SMTP_EMAIL" envDefault:"senkinsaha@mail.ru"`
-	SmtpSenderPassword string `env:"SMTP_PASSWORD" envDefault:"WxehL52vLFjTRmwTuXa4"`
+	SmtpAdr            string `env:"SMTP_ADR" envDefault:"smtp.gmail.com"`
+	SmtpSenderEmail    string `env:"SMTP_EMAIL" envDefault:"mamoru90000@gmail.com"`
+	SmtpSenderPassword string `env:"SMTP_PASSWORD" envDefault:"txivhhptkxmnravz"`
 }
