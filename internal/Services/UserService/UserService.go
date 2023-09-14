@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"io"
 	"log"
 	"math/big"
 	"net/http"
 	"net/smtp"
+	"strconv"
 )
 
 type UserService struct {
@@ -36,6 +38,7 @@ func (us *UserService) GetHandler() http.Handler {
 	router.HandleFunc("/user/confirmemail", us.ConfirmEmail).Methods(http.MethodGet)
 	router.HandleFunc("/user/sendconfirmcode", us.SendConfirmCode).Methods(http.MethodGet)
 	router.HandleFunc("/user/userinfo", us.GetUserInfo).Methods(http.MethodGet)
+	router.HandleFunc("/user/getavatar", us.GetAvatar).Methods(http.MethodGet)
 	router.HandleFunc("/user/patchavatar", us.PatchAvatar).Methods(http.MethodPatch)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
@@ -202,7 +205,6 @@ type UserInfo struct {
 	Lastname string `json:"lastname"`
 	Surname  string `json:"surname"`
 	Email    string `json:"email"`
-	Avatar   string `json:"avatar"`
 }
 
 func (us *UserService) GetUserInfo(w http.ResponseWriter, r *http.Request) {
@@ -230,7 +232,6 @@ func (us *UserService) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 		Lastname: user.LastName,
 		Surname:  user.SurName,
 		Email:    user.Email,
-		Avatar:   string(user.Avatar),
 	})
 	log.Println(user.Login)
 }
@@ -242,7 +243,7 @@ type Avatar struct {
 
 func (us *UserService) PatchAvatar(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция добавления аватара")
-	req := &Avatar{}
+	/*req := &Avatar{}
 	log.Println("Массив байт - ", req.Avatar)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -270,8 +271,58 @@ func (us *UserService) PatchAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		w.WriteHeader(http.StatusAccepted)
+	}*/
+	id := r.FormValue("id")
+	uuid, err := uuid.Parse(id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
 	}
+	file, _, err := r.FormFile("avatar")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	user, err := us.userrep.Get(r.Context(), uuid)
+	user.Avatar = fileData
+	log.Println("Массив байт - ", user.Avatar)
+	err = us.userrep.Update(r.Context(), user)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}
 
+func (us *UserService) GetAvatar(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	uuid, err := uuid.Parse(id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	user, err := us.userrep.Get(r.Context(), uuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить запись пользователя из бд", err)
+		return
+	}
+	avatarBytes := user.Avatar
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Content-Length", strconv.Itoa(len(avatarBytes)))
+	if _, err := w.Write(avatarBytes); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func generateRandomString(length int) string {
