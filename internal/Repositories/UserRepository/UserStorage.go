@@ -68,6 +68,16 @@ func (r *UserStorage) GetByEmail(ctx context.Context, email string) (bool, error
 	return true, nil
 }
 
+func (r *UserStorage) GetByEmailUser(ctx context.Context, email string) (*Models.Usr, error) {
+	u := new(Models.Usr)
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
+	if err != nil {
+		log.Println("Не удалось найти запись пользователя по почте или неизвестная ошибка", err)
+		return nil, err
+	}
+	return u, nil
+}
+
 func (r *UserStorage) GetByLoginAndPassword(ctx context.Context, login string, password string) (bool, uuid.UUID, error) {
 	var emptyUUID uuid.UUID
 	u := new(Models.Usr)

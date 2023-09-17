@@ -40,6 +40,7 @@ func (us *UserService) GetHandler() http.Handler {
 	router.HandleFunc("/user/userinfo", us.GetUserInfo).Methods(http.MethodGet)
 	router.HandleFunc("/user/getavatar", us.GetAvatar).Methods(http.MethodGet)
 	router.HandleFunc("/user/patchavatar", us.PatchAvatar).Methods(http.MethodPatch)
+	router.HandleFunc("/user/changepassword", us.ChangePassword).Methods(http.MethodPatch)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -243,35 +244,6 @@ type Avatar struct {
 
 func (us *UserService) PatchAvatar(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция добавления аватара")
-	/*req := &Avatar{}
-	log.Println("Массив байт - ", req.Avatar)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	uuid, err2 := uuid.Parse(req.Id)
-	if err2 != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Println("Не удалось конвертировать строку в uuid", err2)
-		return
-	}
-	log.Println("Массив байт - ", req.Avatar)
-	user, err3 := us.userrep.Get(r.Context(), uuid)
-	if err3 != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Println("Не удалось получить пользователя", err3)
-		return
-	}
-	user.Avatar = []byte(req.Avatar)
-	log.Println("Массив байт - ", user.Avatar)
-	err4 := us.userrep.Update(r.Context(), user)
-	if err4 != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Println("Не удалось обновить данные о пользователе", err4)
-		return
-	} else {
-		w.WriteHeader(http.StatusAccepted)
-	}*/
 	id := r.FormValue("id")
 	uuid, err := uuid.Parse(id)
 	if err != nil {
@@ -322,6 +294,35 @@ func (us *UserService) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write(avatarBytes); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+}
+
+type ChangePass struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (us *UserService) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	//email := r.URL.Query().Get("email")
+	//pass := r.URL.Query().Get("pass")
+	req := &ChangePass{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	user, err := us.userrep.GetByEmailUser(r.Context(), req.Email)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить запись пользователя из бд", err)
+		return
+	}
+	user.Password = req.Password
+	err = us.userrep.Update(r.Context(), user)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
