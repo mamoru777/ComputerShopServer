@@ -78,21 +78,21 @@ func (r *UserStorage) GetByEmailUser(ctx context.Context, email string) (*Models
 	return u, nil
 }
 
-func (r *UserStorage) GetByLoginAndPassword(ctx context.Context, login string, password string) (bool, uuid.UUID, error) {
+func (r *UserStorage) GetByLoginAndPassword(ctx context.Context, login string, password string) (bool, uuid.UUID, string, error) {
 	var emptyUUID uuid.UUID
 	u := new(Models.Usr)
 	err := r.db.WithContext(ctx).Where("login = ? AND password = ?", login, password).First(&u).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Println("Запись пользователя не была найдена")
-			return false, emptyUUID, nil
+			return false, emptyUUID, "", nil
 		} else {
 			log.Println("Ошибка при выполнения запроса на получение пользователя", err)
-			return false, emptyUUID, err
+			return false, emptyUUID, "", err
 		}
 	}
 	log.Println("Запись пользователя была найдена")
-	return true, u.ID, nil
+	return true, u.ID, u.Role, nil
 }
 
 func (r *UserStorage) CreateCode(ctx context.Context, ec *Models.EmailCode) error {

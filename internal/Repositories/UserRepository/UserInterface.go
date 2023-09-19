@@ -10,7 +10,7 @@ type UserRepository interface {
 	Create(ctx context.Context, u *Models.Usr) error
 	Get(ctx context.Context, id uuid.UUID) (*Models.Usr, error)
 	GetByLogin(ctx context.Context, login string) (bool, error)
-	GetByLoginAndPassword(ctx context.Context, login string, password string) (bool, uuid.UUID, error)
+	GetByLoginAndPassword(ctx context.Context, login string, password string) (bool, uuid.UUID, string, error)
 	GetByEmail(ctx context.Context, email string) (bool, error)
 	GetByEmailUser(ctx context.Context, email string) (*Models.Usr, error)
 	//List (ctx context.Context, )

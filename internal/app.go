@@ -25,6 +25,12 @@ func Run(cfg Config.Config) error {
 	}
 	s.SetKeepAlivesEnabled(true)
 	ctx, cancel := context.WithCancel(context.Background())
+	err = serv.CreateAdmin()
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Println("Пользователь админ создан")
+	}
 
 	go func() {
 		log.Printf("starting http server at %d", cfg.Port)

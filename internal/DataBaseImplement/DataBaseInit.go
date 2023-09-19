@@ -18,7 +18,7 @@ func InitDB(cfg Config.Config) (*gorm.DB, error) {
 	if err != nil {
 		log.Fatal("Cannot to Connect DataBase", err)
 	}
-	db.AutoMigrate(&Models.Usr{}, &Models.EmailCode{})
+	db.AutoMigrate(&Models.Usr{}, &Models.EmailCode{}, &Models.Good{})
 	return gorm.Open(postgres.Open(dsn), &gorm.Config{})
 }
 

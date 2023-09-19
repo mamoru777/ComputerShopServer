@@ -14,12 +14,26 @@ type Usr struct {
 	SurName  string    `json:"surName" gorm:"sur_name"`                                   //`db:"surname" gorm:"surname"`
 	Email    string    `json:"email" gorm:"email"`                                        //`db:"email" gorm:"email"`
 	Avatar   []byte    `json:"avatar" gorm:"avatar"`                                      //`db:"avatar" gorm:"avatar"`
+	Role     string    `json:"role" gorm:"role"`
 }
 
 type EmailCode struct {
 	ID    uuid.UUID `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
 	Email string    `json:"email" gorm:"email"`
 	Code  string    `json:"code" gorm:"gorm"`
+}
+
+type Good struct {
+	Id          uuid.UUID `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	Type        string    `json:"type" gorm:"type"`
+	Name        string    `json:"name" gorm:"name"`
+	Description string    `json:"description" gorm:"description"`
+	Price       float64   `json:"price" gorm:"price"`
+	Avatar      []byte    `json:"avatar" gorm:"avatar"`
+}
+
+type Order struct {
+	Id uuid.UUID `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
 }
 
 func (u *Usr) Validate() error {

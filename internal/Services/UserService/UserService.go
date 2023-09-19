@@ -4,8 +4,10 @@ import (
 	"ComputerShopServer/internal/DataBaseImplement/Config"
 	"ComputerShopServer/internal/Repositories/Models"
 	"ComputerShopServer/internal/Repositories/UserRepository"
+	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"io"
@@ -41,6 +43,7 @@ func (us *UserService) GetHandler() http.Handler {
 	router.HandleFunc("/user/getavatar", us.GetAvatar).Methods(http.MethodGet)
 	router.HandleFunc("/user/patchavatar", us.PatchAvatar).Methods(http.MethodPatch)
 	router.HandleFunc("/user/changepassword", us.ChangePassword).Methods(http.MethodPatch)
+	router.HandleFunc("/user/changedata", us.ChangeData).Methods(http.MethodPatch)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -53,6 +56,7 @@ type CreateUserRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
+	Role     string `json:"role"`
 }
 
 func (us *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -66,6 +70,7 @@ func (us *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
 		Login:    req.Login,
 		Password: req.Password,
 		Email:    req.Email,
+		Role:     req.Role,
 	}
 	if err := us.userrep.Create(r.Context(), &u); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -114,13 +119,14 @@ func (us *UserService) GetUserByLogin(w http.ResponseWriter, r *http.Request) {
 type UserLogin struct {
 	IsExist bool      `json:"isExist"`
 	Id      uuid.UUID `json:"id"`
+	Role    string    `json:"role"`
 }
 
 func (us *UserService) GetUserByLoginAndPassword(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция получения пользователя по логину и паролю")
 	login := r.URL.Query().Get("login")
 	password := r.URL.Query().Get("password")
-	isExist, id, err := us.userrep.GetByLoginAndPassword(r.Context(), login, password)
+	isExist, id, role, err := us.userrep.GetByLoginAndPassword(r.Context(), login, password)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -130,6 +136,7 @@ func (us *UserService) GetUserByLoginAndPassword(w http.ResponseWriter, r *http.
 	_ = json.NewEncoder(w).Encode(&UserLogin{
 		Id:      id,
 		IsExist: isExist,
+		Role:    role,
 	})
 }
 
@@ -223,7 +230,7 @@ func (us *UserService) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 		log.Println("Не удалось получить запись пользователя из бд", err)
 		return
 	}
-	log.Println(user)
+	//log.Println(user)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(&UserInfo{
@@ -264,7 +271,7 @@ func (us *UserService) PatchAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := us.userrep.Get(r.Context(), uuid)
 	user.Avatar = fileData
-	log.Println("Массив байт - ", user.Avatar)
+	//log.Println("Массив байт - ", user.Avatar)
 	err = us.userrep.Update(r.Context(), user)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -324,6 +331,70 @@ func (us *UserService) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+type ChangeData struct {
+	Id       string `json:"id"`
+	Login    string `json:"login"`
+	Name     string `json:"name"`
+	LastName string `json:"lastname"`
+	SurName  string `json:"surname"`
+}
+
+func (us *UserService) ChangeData(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция изменения даты пользователя")
+	req := &ChangeData{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	log.Println(req)
+	uuid, err := uuid.Parse(req.Id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	user, err := us.userrep.Get(r.Context(), uuid)
+	if req.Login != "" {
+		user.Login = req.Login
+	}
+	if req.Name != "" {
+		user.Name = req.Name
+	}
+	if req.LastName != "" {
+		user.LastName = req.LastName
+	}
+	if req.SurName != "" {
+		user.SurName = req.SurName
+	}
+	err = us.userrep.Update(r.Context(), user)
+	if err != nil {
+		log.Println("Не удалось обновить данные о пользователе", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (us *UserService) CreateAdmin() error {
+	admin := Models.Usr{
+		Login:    "admin",
+		Password: "admin",
+		Email:    "mamoru90000@gmail.com",
+		Role:     "admin",
+	}
+	isExist, err := us.userrep.GetByLogin(context.Background(), admin.Login)
+	if err != nil {
+		log.Println("Не удалось получить пользователя по логину")
+	}
+	if isExist {
+		log.Println("Пользователь админ уже существует")
+		err = errors.New("Пользователь админ уже существует")
+		return err
+	}
+	us.userrep.Create(context.Background(), &admin)
+	return nil
 }
 
 func generateRandomString(length int) string {
