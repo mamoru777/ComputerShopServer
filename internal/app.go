@@ -3,8 +3,9 @@ package internal
 import (
 	"ComputerShopServer/internal/DataBaseImplement"
 	"ComputerShopServer/internal/DataBaseImplement/Config"
+	"ComputerShopServer/internal/Repositories/GoodRepository"
 	"ComputerShopServer/internal/Repositories/UserRepository"
-	"ComputerShopServer/internal/Services/UserService"
+	"ComputerShopServer/internal/Services"
 	"context"
 	"log"
 	"net/http"
@@ -18,7 +19,7 @@ func Run(cfg Config.Config) error {
 	if err != nil {
 		return err
 	}
-	serv := UserService.New(UserRepository.New(db), cfg)
+	serv := Services.New(UserRepository.New(db), GoodRepository.New(db), cfg)
 	s := &http.Server{
 		Addr:    ":13999", //"0.0.0.0:%d", cfg.Port),
 		Handler: serv.GetHandler(),

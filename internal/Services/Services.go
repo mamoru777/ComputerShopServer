@@ -1,7 +1,8 @@
-package UserService
+package Services
 
 import (
 	"ComputerShopServer/internal/DataBaseImplement/Config"
+	"ComputerShopServer/internal/Repositories/GoodRepository"
 	"ComputerShopServer/internal/Repositories/Models"
 	"ComputerShopServer/internal/Repositories/UserRepository"
 	"context"
@@ -18,19 +19,21 @@ import (
 	"strconv"
 )
 
-type UserService struct {
+type Service struct {
 	userrep UserRepository.UserRepository
+	goodrep GoodRepository.GoodRepository
 	config  Config.Config
 }
 
-func New(userrep UserRepository.UserRepository, config Config.Config) *UserService {
-	return &UserService{
+func New(userrep UserRepository.UserRepository, goodrep GoodRepository.GoodRepository, config Config.Config) *Service {
+	return &Service{
 		config:  config,
 		userrep: userrep,
+		goodrep: goodrep,
 	}
 }
 
-func (us *UserService) GetHandler() http.Handler {
+func (us *Service) GetHandler() http.Handler {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/user/registration", us.CreateUser).Methods(http.MethodPost)
@@ -44,6 +47,10 @@ func (us *UserService) GetHandler() http.Handler {
 	router.HandleFunc("/user/patchavatar", us.PatchAvatar).Methods(http.MethodPatch)
 	router.HandleFunc("/user/changepassword", us.ChangePassword).Methods(http.MethodPatch)
 	router.HandleFunc("/user/changedata", us.ChangeData).Methods(http.MethodPatch)
+
+	router.HandleFunc("/good/create", us.CreateGood).Methods(http.MethodPost)
+	router.HandleFunc("/good/goodcheck", us.GetGoodByName).Methods(http.MethodGet)
+	router.HandleFunc("/good/goodsbytype", us.GetGoodsByType).Methods(http.MethodGet)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -59,7 +66,7 @@ type CreateUserRequest struct {
 	Role     string `json:"role"`
 }
 
-func (us *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (us *Service) CreateUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция создания пользователя")
 	req := &CreateUserRequest{}
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
@@ -84,7 +91,7 @@ type UserCheck struct {
 	IsExist bool `json:"isExist"`
 }
 
-func (us *UserService) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
+func (us *Service) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
 	email := r.URL.Query().Get("email")
 	e, err := us.userrep.GetByEmail(r.Context(), email)
 	if err != nil {
@@ -99,7 +106,7 @@ func (us *UserService) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (us *UserService) GetUserByLogin(w http.ResponseWriter, r *http.Request) {
+func (us *Service) GetUserByLogin(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция получения пользователя по логину")
 	//vars := mux.Vars(r)
 	login := r.URL.Query().Get("login") //vars["login"]
@@ -122,7 +129,7 @@ type UserLogin struct {
 	Role    string    `json:"role"`
 }
 
-func (us *UserService) GetUserByLoginAndPassword(w http.ResponseWriter, r *http.Request) {
+func (us *Service) GetUserByLoginAndPassword(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция получения пользователя по логину и паролю")
 	login := r.URL.Query().Get("login")
 	password := r.URL.Query().Get("password")
@@ -140,7 +147,7 @@ func (us *UserService) GetUserByLoginAndPassword(w http.ResponseWriter, r *http.
 	})
 }
 
-func (us *UserService) SendConfirmCode(w http.ResponseWriter, r *http.Request) {
+func (us *Service) SendConfirmCode(w http.ResponseWriter, r *http.Request) {
 	smtpServer := us.config.SmtpAdr
 	smtpPort := us.config.SmtpPort
 	senderEmail := us.config.SmtpSenderEmail
@@ -182,7 +189,7 @@ func (us *UserService) SendConfirmCode(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (us *UserService) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
+func (us *Service) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	email := r.URL.Query().Get("email")
 	_, ecFromBd, err := us.userrep.GetCode(r.Context(), email)
@@ -215,7 +222,7 @@ type UserInfo struct {
 	Email    string `json:"email"`
 }
 
-func (us *UserService) GetUserInfo(w http.ResponseWriter, r *http.Request) {
+func (us *Service) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция получения пользователя")
 	id := r.URL.Query().Get("id")
 	uuid, err := uuid.Parse(id)
@@ -249,7 +256,7 @@ type Avatar struct {
 	Id     string `json:"id"`
 }
 
-func (us *UserService) PatchAvatar(w http.ResponseWriter, r *http.Request) {
+func (us *Service) PatchAvatar(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция добавления аватара")
 	id := r.FormValue("id")
 	uuid, err := uuid.Parse(id)
@@ -281,7 +288,7 @@ func (us *UserService) PatchAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (us *UserService) GetAvatar(w http.ResponseWriter, r *http.Request) {
+func (us *Service) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	uuid, err := uuid.Parse(id)
 	if err != nil {
@@ -309,7 +316,7 @@ type ChangePass struct {
 	Password string `json:"password"`
 }
 
-func (us *UserService) ChangePassword(w http.ResponseWriter, r *http.Request) {
+func (us *Service) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	//email := r.URL.Query().Get("email")
 	//pass := r.URL.Query().Get("pass")
 	req := &ChangePass{}
@@ -341,7 +348,7 @@ type ChangeData struct {
 	SurName  string `json:"surname"`
 }
 
-func (us *UserService) ChangeData(w http.ResponseWriter, r *http.Request) {
+func (us *Service) ChangeData(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция изменения даты пользователя")
 	req := &ChangeData{}
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
@@ -377,7 +384,7 @@ func (us *UserService) ChangeData(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (us *UserService) CreateAdmin() error {
+func (us *Service) CreateAdmin() error {
 	admin := Models.Usr{
 		Login:    "admin",
 		Password: "admin",
@@ -395,6 +402,79 @@ func (us *UserService) CreateAdmin() error {
 	}
 	us.userrep.Create(context.Background(), &admin)
 	return nil
+}
+
+type CreateGood struct {
+	Type        string  `json:"goodtype"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Price       float64 `json:"price"`
+}
+
+func (us *Service) CreateGood(w http.ResponseWriter, r *http.Request) {
+	file, _, err := r.FormFile("avatar")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	gtype := r.FormValue("goodtype")
+	name := r.FormValue("name")
+	descr := r.FormValue("description")
+	price, err := strconv.ParseFloat(r.FormValue("descr"), 64)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	good := &Models.Good{
+		Name:        name,
+		Description: descr,
+		Type:        gtype,
+		Price:       price,
+		Avatar:      fileData,
+	}
+	err = us.goodrep.Create(r.Context(), good)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+type GoodCheck struct {
+	IsExist bool `json:"isExist"`
+}
+
+func (us *Service) GetGoodByName(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	e, err := us.goodrep.GetByName(r.Context(), name)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(&UserCheck{
+		IsExist: e,
+	})
+}
+
+func (us *Service) GetGoodsByType(w http.ResponseWriter, r *http.Request) {
+	gtype := r.URL.Query().Get("goodtype")
+	goods, err := us.goodrep.GetByType(r.Context(), gtype)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+
+	}
+
 }
 
 func generateRandomString(length int) string {
