@@ -404,14 +404,16 @@ func (us *Service) CreateAdmin() error {
 	return nil
 }
 
-type CreateGood struct {
+type Good struct {
 	Type        string  `json:"goodtype"`
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Price       float64 `json:"price"`
+	Avatar      []byte  `json:"avatar"`
 }
 
 func (us *Service) CreateGood(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция создания товара")
 	file, _, err := r.FormFile("avatar")
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -426,7 +428,7 @@ func (us *Service) CreateGood(w http.ResponseWriter, r *http.Request) {
 	gtype := r.FormValue("goodtype")
 	name := r.FormValue("name")
 	descr := r.FormValue("description")
-	price, err := strconv.ParseFloat(r.FormValue("descr"), 64)
+	price, err := strconv.ParseFloat(r.FormValue("price"), 64)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -434,10 +436,11 @@ func (us *Service) CreateGood(w http.ResponseWriter, r *http.Request) {
 	good := &Models.Good{
 		Name:        name,
 		Description: descr,
-		Type:        gtype,
+		GoodType:    gtype,
 		Price:       price,
 		Avatar:      fileData,
 	}
+	//log.Println(good)
 	err = us.goodrep.Create(r.Context(), good)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -472,7 +475,9 @@ func (us *Service) GetGoodsByType(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	} else {
-
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(goods)
 	}
 
 }

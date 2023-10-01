@@ -25,7 +25,7 @@ type EmailCode struct {
 
 type Good struct {
 	Id          uuid.UUID `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	Type        string    `json:"type" gorm:"type"`
+	GoodType    string    `json:"good_type" gorm:"good_type"`
 	Name        string    `json:"name" gorm:"name"`
 	Description string    `json:"description" gorm:"description"`
 	Price       float64   `json:"price" gorm:"price"`
