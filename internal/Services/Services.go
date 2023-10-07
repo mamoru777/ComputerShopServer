@@ -469,7 +469,7 @@ func (us *Service) GetGoodByName(w http.ResponseWriter, r *http.Request) {
 }
 
 func (us *Service) GetGoodsByType(w http.ResponseWriter, r *http.Request) {
-	gtype := r.URL.Query().Get("goodtype")
+	gtype := r.URL.Query().Get("good_type")
 	goods, err := us.goodrep.GetByType(r.Context(), gtype)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
