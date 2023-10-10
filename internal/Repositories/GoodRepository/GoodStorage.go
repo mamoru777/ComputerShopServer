@@ -54,7 +54,7 @@ func (gs *GoodStorage) GetByName(ctx context.Context, name string) (bool, error)
 
 func (gs *GoodStorage) GetByType(ctx context.Context, gtype string) ([]*Models.Good, error) {
 	goods := []*Models.Good{}
-	err := gs.db.WithContext(ctx).Where("good_type = ?", gtype).First(&goods).Error
+	err := gs.db.WithContext(ctx).Where("good_type = ?", gtype).Find(&goods).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Println("Товары по типу", gtype, "не были найдены")

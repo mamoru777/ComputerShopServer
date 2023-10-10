@@ -51,6 +51,8 @@ func (us *Service) GetHandler() http.Handler {
 	router.HandleFunc("/good/create", us.CreateGood).Methods(http.MethodPost)
 	router.HandleFunc("/good/goodcheck", us.GetGoodByName).Methods(http.MethodGet)
 	router.HandleFunc("/good/goodsbytype", us.GetGoodsByType).Methods(http.MethodGet)
+	router.HandleFunc("/good/getgood", us.GetGood).Methods(http.MethodGet)
+	router.HandleFunc("/good/goodsbyid", us.GetGoodsById).Methods(http.MethodGet)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -468,6 +470,27 @@ func (us *Service) GetGoodByName(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (us *Service) GetGoodsById(w http.ResponseWriter, r *http.Request) {
+	var goods []Models.Good
+	ides := r.URL.Query()["ides"]
+	for _, id := range ides {
+		uuid, err := uuid.Parse(id)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		Good, err := us.goodrep.Get(r.Context(), uuid)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		goods = append(goods, *Good)
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(goods)
+}
+
 func (us *Service) GetGoodsByType(w http.ResponseWriter, r *http.Request) {
 	gtype := r.URL.Query().Get("good_type")
 	goods, err := us.goodrep.GetByType(r.Context(), gtype)
@@ -480,6 +503,25 @@ func (us *Service) GetGoodsByType(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(goods)
 	}
 
+}
+
+func (us *Service) GetGood(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("good_id")
+	uuid, err := uuid.Parse(id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	good, err := us.goodrep.Get(r.Context(), uuid)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(good)
+	}
 }
 
 func generateRandomString(length int) string {
