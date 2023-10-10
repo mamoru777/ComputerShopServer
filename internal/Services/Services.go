@@ -53,6 +53,7 @@ func (us *Service) GetHandler() http.Handler {
 	router.HandleFunc("/good/goodsbytype", us.GetGoodsByType).Methods(http.MethodGet)
 	router.HandleFunc("/good/getgood", us.GetGood).Methods(http.MethodGet)
 	router.HandleFunc("/good/goodsbyid", us.GetGoodsById).Methods(http.MethodGet)
+	router.HandleFunc("/good/changegood").Methods(http.MethodPatch)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -522,6 +523,52 @@ func (us *Service) GetGood(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(good)
 	}
+}
+
+func (us *Service) ChangeGood(w http.ResponseWriter, r *http.Request) {
+	file, _, err := r.FormFile("avatar")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	gtype := r.FormValue("goodtype")
+	name := r.FormValue("name")
+	descr := r.FormValue("description")
+	price, err := strconv.ParseFloat(r.FormValue("price"), 64)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	id := r.FormValue("id")
+	uuid, err := uuid.Parse(id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	good, err := us.goodrep.Get(r.Context(), uuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	good.GoodType = gtype
+	good.Name = name
+	good.Description = descr
+	good.Price = price
+	good.Avatar = fileData
+	err = us.goodrep.Update(r.Context(), good)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func generateRandomString(length int) string {
