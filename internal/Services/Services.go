@@ -53,7 +53,8 @@ func (us *Service) GetHandler() http.Handler {
 	router.HandleFunc("/good/goodsbytype", us.GetGoodsByType).Methods(http.MethodGet)
 	router.HandleFunc("/good/getgood", us.GetGood).Methods(http.MethodGet)
 	router.HandleFunc("/good/goodsbyid", us.GetGoodsById).Methods(http.MethodGet)
-	router.HandleFunc("/good/changegood").Methods(http.MethodPatch)
+	router.HandleFunc("/good/changegood", us.ChangeGood).Methods(http.MethodPatch)
+	router.HandleFunc("/good/deletegood", us.DeleteGood).Methods(http.MethodPatch)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -526,6 +527,7 @@ func (us *Service) GetGood(w http.ResponseWriter, r *http.Request) {
 }
 
 func (us *Service) ChangeGood(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция изменения товара")
 	file, _, err := r.FormFile("avatar")
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -566,6 +568,32 @@ func (us *Service) ChangeGood(w http.ResponseWriter, r *http.Request) {
 	err = us.goodrep.Update(r.Context(), good)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+type GoodId struct {
+	Id string `json:"id"`
+}
+
+func (us *Service) DeleteGood(w http.ResponseWriter, r *http.Request) {
+	req := &GoodId{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	id := req.Id
+	uuid, err := uuid.Parse(id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	err = us.goodrep.Delete(r.Context(), uuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось удалить товар из бд")
 		return
 	}
 	w.WriteHeader(http.StatusOK)
