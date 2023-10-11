@@ -24,7 +24,7 @@ func (r *UserStorage) Create(ctx context.Context, u *Models.Usr) error {
 
 func (r *UserStorage) Get(ctx context.Context, id uuid.UUID) (*Models.Usr, error) {
 	u := new(Models.Usr)
-	err := r.db.WithContext(ctx).First(u, id).Error
+	err := r.db.Preload("Orders").WithContext(ctx).First(u, id).Error
 	return u, err
 }
 
@@ -38,7 +38,7 @@ func (r *UserStorage) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (r *UserStorage) GetByLogin(ctx context.Context, login string) (bool, error) {
 	u := new(Models.Usr)
-	err := r.db.WithContext(ctx).Where("login = ?", login).First(&u).Error
+	err := r.db.Preload("Orders").WithContext(ctx).Where("login = ?", login).First(&u).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Println("Запись логина не была найдена")
@@ -54,7 +54,7 @@ func (r *UserStorage) GetByLogin(ctx context.Context, login string) (bool, error
 
 func (r *UserStorage) GetByEmail(ctx context.Context, email string) (bool, error) {
 	u := new(Models.Usr)
-	err := r.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
+	err := r.db.Preload("Orders").WithContext(ctx).Where("email = ?", email).First(&u).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Println("Запись почты не была найдена")
@@ -70,7 +70,7 @@ func (r *UserStorage) GetByEmail(ctx context.Context, email string) (bool, error
 
 func (r *UserStorage) GetByEmailUser(ctx context.Context, email string) (*Models.Usr, error) {
 	u := new(Models.Usr)
-	err := r.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
+	err := r.db.Preload("Orders").WithContext(ctx).Where("email = ?", email).First(&u).Error
 	if err != nil {
 		log.Println("Не удалось найти запись пользователя по почте или неизвестная ошибка", err)
 		return nil, err
@@ -81,7 +81,7 @@ func (r *UserStorage) GetByEmailUser(ctx context.Context, email string) (*Models
 func (r *UserStorage) GetByLoginAndPassword(ctx context.Context, login string, password string) (bool, uuid.UUID, string, error) {
 	var emptyUUID uuid.UUID
 	u := new(Models.Usr)
-	err := r.db.WithContext(ctx).Where("login = ? AND password = ?", login, password).First(&u).Error
+	err := r.db.Preload("Orders").WithContext(ctx).Where("login = ? AND password = ?", login, password).First(&u).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Println("Запись пользователя не была найдена")

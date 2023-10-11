@@ -15,6 +15,7 @@ type Usr struct {
 	Email    string    `json:"email" gorm:"email"`                                        //`db:"email" gorm:"email"`
 	Avatar   []byte    `json:"avatar" gorm:"avatar"`                                      //`db:"avatar" gorm:"avatar"`
 	Role     string    `json:"role" gorm:"role"`
+	Orders   []Order
 }
 
 type EmailCode struct {
@@ -30,10 +31,20 @@ type Good struct {
 	Description string    `json:"description" gorm:"description"`
 	Price       float64   `json:"price" gorm:"price"`
 	Avatar      []byte    `json:"avatar" gorm:"avatar"`
+	Orders      []Order   `gorm:"many2many:order_good;"`
 }
 
 type Order struct {
-	Id uuid.UUID `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	Id     uuid.UUID `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	Summ   float64   `json:"summ" gorm:"summ"`
+	City   string    `json:"city" gorm:"city"`
+	Adress string    `json:"adress" gorm:"adress"`
+	Phone  string    `json:"phone" gorm:"phone"`
+	Status string    `json:"status" gorm:"status"`
+	IsPaid bool      `json:"isPaid" gorm:"is_paid"`
+	Goods  []Good    `gorm:"many2many:order_good;"`
+	Usr    Usr       `db:"usr_id" gorm:"foreignKey:usr_id"`
+	UsrId  uuid.UUID
 }
 
 func (u *Usr) Validate() error {

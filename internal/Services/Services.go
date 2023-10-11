@@ -4,6 +4,7 @@ import (
 	"ComputerShopServer/internal/DataBaseImplement/Config"
 	"ComputerShopServer/internal/Repositories/GoodRepository"
 	"ComputerShopServer/internal/Repositories/Models"
+	"ComputerShopServer/internal/Repositories/OrderRepository"
 	"ComputerShopServer/internal/Repositories/UserRepository"
 	"context"
 	"crypto/rand"
@@ -20,16 +21,18 @@ import (
 )
 
 type Service struct {
-	userrep UserRepository.UserRepository
-	goodrep GoodRepository.GoodRepository
-	config  Config.Config
+	userrep  UserRepository.UserRepository
+	goodrep  GoodRepository.GoodRepository
+	orderrep OrderRepository.OrderRepository
+	config   Config.Config
 }
 
-func New(userrep UserRepository.UserRepository, goodrep GoodRepository.GoodRepository, config Config.Config) *Service {
+func New(userrep UserRepository.UserRepository, goodrep GoodRepository.GoodRepository, orderrep OrderRepository.OrderRepository, config Config.Config) *Service {
 	return &Service{
-		config:  config,
-		userrep: userrep,
-		goodrep: goodrep,
+		config:   config,
+		userrep:  userrep,
+		goodrep:  goodrep,
+		orderrep: orderrep,
 	}
 }
 
@@ -55,6 +58,9 @@ func (us *Service) GetHandler() http.Handler {
 	router.HandleFunc("/good/goodsbyid", us.GetGoodsById).Methods(http.MethodGet)
 	router.HandleFunc("/good/changegood", us.ChangeGood).Methods(http.MethodPatch)
 	router.HandleFunc("/good/deletegood", us.DeleteGood).Methods(http.MethodPatch)
+
+	router.HandleFunc("/order/create", us.CreateOrder).Methods(http.MethodPost)
+	router.HandleFunc("/order/getbyuserid", us.GetOrdersByUserId).Methods(http.MethodGet)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -597,6 +603,108 @@ func (us *Service) DeleteGood(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+type CreateOrder struct {
+	Summ   float64  `json:"summ"`
+	City   string   `json:"city"`
+	Adress string   `json:"adress"`
+	Phone  string   `json:"phone"`
+	IsPaid bool     `json:"ispaid"`
+	GoodId []string `json:"goodid"`
+	UserId string   `json:"userid"`
+}
+
+func (us *Service) CreateOrder(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция создания заказа")
+	req := &CreateOrder{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	log.Println(req)
+	userUuid, err := uuid.Parse(req.UserId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	var goodUuides []uuid.UUID
+	for _, goodId := range req.GoodId {
+		goodUuid, err := uuid.Parse(goodId)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println("Не удалось конвертировать строку в uuid", err)
+			return
+		}
+		goodUuides = append(goodUuides, goodUuid)
+	}
+	var goods []Models.Good
+	for _, goodUuid := range goodUuides {
+		good, err := us.goodrep.Get(r.Context(), goodUuid)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println("Не удалось получить товар по uuid")
+			return
+		}
+		goods = append(goods, *good)
+	}
+	user, err := us.userrep.Get(r.Context(), userUuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить пользователя по uuid", err)
+		return
+	}
+	err = us.orderrep.Create(r.Context(), &Models.Order{
+		Summ:   req.Summ,
+		City:   req.City,
+		Adress: req.Adress,
+		Phone:  req.Phone,
+		IsPaid: req.IsPaid,
+		Status: "Sobr",
+		Goods:  goods,
+		//UsrId:  userUuid,
+		Usr: *user,
+	})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось создать заказ", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+type GetOrders struct {
+	Id     string  `json:"id"`
+	Summ   float64 `json:"summ"`
+	Status string  `json:"status"`
+}
+
+func (us *Service) GetOrdersByUserId(w http.ResponseWriter, r *http.Request) {
+	userId := r.URL.Query().Get("user_id")
+	userUuid, err := uuid.Parse(userId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	orders, err := us.orderrep.GetByUserId(r.Context(), userUuid)
+	getOrders := []GetOrders{}
+	for _, order := range orders {
+		getOrders = append(getOrders, GetOrders{
+			Id:     order.Id.String(),
+			Summ:   order.Summ,
+			Status: order.Status,
+		})
+	}
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(getOrders)
+	}
 }
 
 func generateRandomString(length int) string {
