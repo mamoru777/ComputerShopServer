@@ -30,8 +30,17 @@ type Good struct {
 	Name        string    `json:"name" gorm:"name"`
 	Description string    `json:"description" gorm:"description"`
 	Price       float64   `json:"price" gorm:"price"`
+	Status      string    `json:"status" gorm:"status"`
 	Avatar      []byte    `json:"avatar" gorm:"avatar"`
 	Orders      []Order   `gorm:"many2many:order_good;"`
+	Corsina     []Corsina `gorm:"many2many:corsina_good;"`
+}
+
+type Corsina struct {
+	Id    uuid.UUID `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	Usr   Usr       `db:"usr_id" gorm:"foreignKey:usr_id"`
+	UsrId uuid.UUID
+	Good  []Good `gorm:"many2many:corsina_good;"`
 }
 
 type Order struct {

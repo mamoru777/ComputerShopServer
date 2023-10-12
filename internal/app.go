@@ -3,6 +3,7 @@ package internal
 import (
 	"ComputerShopServer/internal/DataBaseImplement"
 	"ComputerShopServer/internal/DataBaseImplement/Config"
+	"ComputerShopServer/internal/Repositories/CorsinaRepository"
 	"ComputerShopServer/internal/Repositories/GoodRepository"
 	"ComputerShopServer/internal/Repositories/OrderRepository"
 	"ComputerShopServer/internal/Repositories/UserRepository"
@@ -20,7 +21,7 @@ func Run(cfg Config.Config) error {
 	if err != nil {
 		return err
 	}
-	serv := Services.New(UserRepository.New(db), GoodRepository.New(db), OrderRepository.New(db), cfg)
+	serv := Services.New(UserRepository.New(db), GoodRepository.New(db), OrderRepository.New(db), CorsinaRepository.New(db), cfg)
 	s := &http.Server{
 		Addr:    ":13999", //"0.0.0.0:%d", cfg.Port),
 		Handler: serv.GetHandler(),

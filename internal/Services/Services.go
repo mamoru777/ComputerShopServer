@@ -2,6 +2,7 @@ package Services
 
 import (
 	"ComputerShopServer/internal/DataBaseImplement/Config"
+	"ComputerShopServer/internal/Repositories/CorsinaRepository"
 	"ComputerShopServer/internal/Repositories/GoodRepository"
 	"ComputerShopServer/internal/Repositories/Models"
 	"ComputerShopServer/internal/Repositories/OrderRepository"
@@ -21,18 +22,20 @@ import (
 )
 
 type Service struct {
-	userrep  UserRepository.UserRepository
-	goodrep  GoodRepository.GoodRepository
-	orderrep OrderRepository.OrderRepository
-	config   Config.Config
+	userrep    UserRepository.UserRepository
+	goodrep    GoodRepository.GoodRepository
+	orderrep   OrderRepository.OrderRepository
+	corsinarep CorsinaRepository.CorsinaRepository
+	config     Config.Config
 }
 
-func New(userrep UserRepository.UserRepository, goodrep GoodRepository.GoodRepository, orderrep OrderRepository.OrderRepository, config Config.Config) *Service {
+func New(userrep UserRepository.UserRepository, goodrep GoodRepository.GoodRepository, orderrep OrderRepository.OrderRepository, corsinarep CorsinaRepository.CorsinaRepository, config Config.Config) *Service {
 	return &Service{
-		config:   config,
-		userrep:  userrep,
-		goodrep:  goodrep,
-		orderrep: orderrep,
+		config:     config,
+		userrep:    userrep,
+		goodrep:    goodrep,
+		orderrep:   orderrep,
+		corsinarep: corsinarep,
 	}
 }
 
@@ -61,6 +64,12 @@ func (us *Service) GetHandler() http.Handler {
 
 	router.HandleFunc("/order/create", us.CreateOrder).Methods(http.MethodPost)
 	router.HandleFunc("/order/getbyuserid", us.GetOrdersByUserId).Methods(http.MethodGet)
+	router.HandleFunc("/order/getbyid", us.GetOrderById).Methods(http.MethodGet)
+	router.HandleFunc("/order/getall", us.GetOrders).Methods(http.MethodGet)
+	router.HandleFunc("/order/patchgood", us.ChangeOrderStatus).Methods(http.MethodPatch)
+
+	router.HandleFunc("/corsina/addgood", us.AddGoodToCorsina).Methods(http.MethodPatch)
+	router.HandleFunc("/corsina/getcorsina", us.GetCorsina).Methods(http.MethodGet)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -91,6 +100,22 @@ func (us *Service) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := us.userrep.Create(r.Context(), &u); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	user, err := us.userrep.GetByEmailUser(r.Context(), req.Email)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить запись пользователя по почте", err)
+		return
+	}
+
+	err = us.corsinarep.Create(r.Context(), &Models.Corsina{
+		Usr:  *user,
+		Good: nil,
+	})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось создать корзину для пользователя", err)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -411,6 +436,17 @@ func (us *Service) CreateAdmin() error {
 		return err
 	}
 	us.userrep.Create(context.Background(), &admin)
+	user, err := us.userrep.GetByEmailUser(context.Background(), "mamoru90000@gmail.com")
+	if err != nil {
+		log.Println("Не удалось получить запись пользователя по почте", err)
+	}
+	err = us.corsinarep.Create(context.Background(), &Models.Corsina{
+		Usr:  *user,
+		Good: nil,
+	})
+	if err != nil {
+		log.Println("Не удалось создать корзину для пользователя", err)
+	}
 	return nil
 }
 
@@ -449,6 +485,7 @@ func (us *Service) CreateGood(w http.ResponseWriter, r *http.Request) {
 		GoodType:    gtype,
 		Price:       price,
 		Avatar:      fileData,
+		Status:      "Есть на складе",
 	}
 	//log.Println(good)
 	err = us.goodrep.Create(r.Context(), good)
@@ -479,6 +516,7 @@ func (us *Service) GetGoodByName(w http.ResponseWriter, r *http.Request) {
 }
 
 func (us *Service) GetGoodsById(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция получения товаров по их Id")
 	var goods []Models.Good
 	ides := r.URL.Query()["ides"]
 	for _, id := range ides {
@@ -580,7 +618,8 @@ func (us *Service) ChangeGood(w http.ResponseWriter, r *http.Request) {
 }
 
 type GoodId struct {
-	Id string `json:"id"`
+	Id     string `json:"id"`
+	Status string `json:"status"`
 }
 
 func (us *Service) DeleteGood(w http.ResponseWriter, r *http.Request) {
@@ -596,10 +635,18 @@ func (us *Service) DeleteGood(w http.ResponseWriter, r *http.Request) {
 		log.Println("Не удалось конвертировать строку в uuid", err)
 		return
 	}
-	err = us.goodrep.Delete(r.Context(), uuid)
+	//err = us.goodrep.Delete(r.Context(), uuid)
+	good, err := us.goodrep.Get(r.Context(), uuid)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Println("Не удалось удалить товар из бд")
+		log.Println("Не удалось получить запись товара", err)
+		return
+	}
+	good.Status = req.Status
+	err = us.goodrep.Update(r.Context(), good)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось удалить товар из бд", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -661,7 +708,7 @@ func (us *Service) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		Adress: req.Adress,
 		Phone:  req.Phone,
 		IsPaid: req.IsPaid,
-		Status: "Sobr",
+		Status: "Укомплектовывается",
 		Goods:  goods,
 		//UsrId:  userUuid,
 		Usr: *user,
@@ -678,6 +725,34 @@ type GetOrders struct {
 	Id     string  `json:"id"`
 	Summ   float64 `json:"summ"`
 	Status string  `json:"status"`
+	UserId string  `json:"user_id"`
+}
+
+func (us *Service) GetOrders(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция получения всех заказов")
+	orders, err := us.orderrep.GetAll(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println(err)
+		return
+	}
+	getOrders := []GetOrders{}
+	for _, order := range orders {
+		getOrders = append(getOrders, GetOrders{
+			Id:     order.Id.String(),
+			Summ:   order.Summ,
+			Status: order.Status,
+			UserId: order.UsrId.String(),
+		})
+	}
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(getOrders)
+	}
 }
 
 func (us *Service) GetOrdersByUserId(w http.ResponseWriter, r *http.Request) {
@@ -695,6 +770,7 @@ func (us *Service) GetOrdersByUserId(w http.ResponseWriter, r *http.Request) {
 			Id:     order.Id.String(),
 			Summ:   order.Summ,
 			Status: order.Status,
+			UserId: order.UsrId.String(),
 		})
 	}
 	if err != nil {
@@ -705,6 +781,166 @@ func (us *Service) GetOrdersByUserId(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(getOrders)
 	}
+}
+
+type GetOrder struct {
+	Id      string   `json:"id"`
+	UserId  string   `json:"user_id"`
+	Summ    float64  `json:"summ"`
+	City    string   `json:"city"`
+	Adress  string   `json:"adress"`
+	Phone   string   `json:"phone"`
+	Status  string   `json:"status"`
+	IsPaid  bool     `json:"is_paid"`
+	GoodsId []string `json:"goods_id"`
+}
+
+func (us *Service) GetOrderById(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция получения заказа по его Id")
+	Id := r.URL.Query().Get("id")
+	Uuid, err := uuid.Parse(Id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	log.Println(Id)
+	order, err := us.orderrep.Get(r.Context(), Uuid)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Println("Не удалось получить заказ", err)
+		return
+	} else {
+		goods := order.Goods
+		var goodsString []string
+		for _, g := range goods {
+			goodsString = append(goodsString, g.Id.String())
+		}
+		//log.Println(order)
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(GetOrder{
+			Id:      order.Id.String(),
+			UserId:  order.UsrId.String(),
+			Summ:    order.Summ,
+			City:    order.City,
+			Adress:  order.Adress,
+			Phone:   order.Phone,
+			Status:  order.Status,
+			IsPaid:  order.IsPaid,
+			GoodsId: goodsString,
+		})
+	}
+
+}
+
+type ChangeStatus struct {
+	Id     string `json:"id"`
+	Status string `json:"status"`
+}
+
+func (us *Service) ChangeOrderStatus(w http.ResponseWriter, r *http.Request) {
+	req := &ChangeStatus{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	Uuid, err := uuid.Parse(req.Id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	order, err := us.orderrep.Get(r.Context(), Uuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println(err)
+		return
+	}
+	order.Status = req.Status
+	err = us.orderrep.Update(r.Context(), order)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось обновить информацию о заказе", err)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+type AddGoodToCorsina struct {
+	UserId string `json:"user_id"`
+	GoodId string `json:"good_id"`
+}
+
+func (us *Service) AddGoodToCorsina(w http.ResponseWriter, r *http.Request) {
+	req := &AddGoodToCorsina{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	UserUuid, err := uuid.Parse(req.UserId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	GoodUuid, err := uuid.Parse(req.GoodId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	good, err := us.goodrep.Get(r.Context(), GoodUuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить запись товара", err)
+		return
+	}
+	corsina, err := us.corsinarep.GetByUser(r.Context(), UserUuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить запись корзины", err)
+		return
+	}
+	corsina.Good = append(corsina.Good, *good)
+	err = us.corsinarep.Update(r.Context(), corsina)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось добавить товар в корзину", err)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
+}
+
+type Corsina struct {
+	GoodIds []string `json:"good_ids"`
+}
+
+func (us *Service) GetCorsina(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция получения корзины")
+	userId := r.URL.Query().Get("user_id")
+	UserUuid, err := uuid.Parse(userId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	corsina, err := us.corsinarep.GetByUser(r.Context(), UserUuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить запись корзины")
+		return
+	}
+	var GoodIds []string
+	for _, g := range corsina.Good {
+		GoodIds = append(GoodIds, g.Id.String())
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(Corsina{GoodIds: GoodIds})
 }
 
 func generateRandomString(length int) string {
