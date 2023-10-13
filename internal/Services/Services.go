@@ -70,6 +70,7 @@ func (us *Service) GetHandler() http.Handler {
 
 	router.HandleFunc("/corsina/addgood", us.AddGoodToCorsina).Methods(http.MethodPatch)
 	router.HandleFunc("/corsina/getcorsina", us.GetCorsina).Methods(http.MethodGet)
+	router.HandleFunc("/order/deletegood").Methods(http.MethodPatch)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -110,8 +111,8 @@ func (us *Service) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = us.corsinarep.Create(r.Context(), &Models.Corsina{
-		Usr:  *user,
-		Good: nil,
+		Usr:   *user,
+		Goods: nil,
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -441,8 +442,8 @@ func (us *Service) CreateAdmin() error {
 		log.Println("Не удалось получить запись пользователя по почте", err)
 	}
 	err = us.corsinarep.Create(context.Background(), &Models.Corsina{
-		Usr:  *user,
-		Good: nil,
+		Usr:   *user,
+		Goods: nil,
 	})
 	if err != nil {
 		log.Println("Не удалось создать корзину для пользователя", err)
@@ -903,7 +904,7 @@ func (us *Service) AddGoodToCorsina(w http.ResponseWriter, r *http.Request) {
 		log.Println("Не удалось получить запись корзины", err)
 		return
 	}
-	corsina.Good = append(corsina.Good, *good)
+	corsina.Goods = append(corsina.Goods, *good)
 	err = us.corsinarep.Update(r.Context(), corsina)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -922,6 +923,7 @@ type Corsina struct {
 func (us *Service) GetCorsina(w http.ResponseWriter, r *http.Request) {
 	log.Println("Использована функция получения корзины")
 	userId := r.URL.Query().Get("user_id")
+	log.Println(userId)
 	UserUuid, err := uuid.Parse(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -935,12 +937,66 @@ func (us *Service) GetCorsina(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var GoodIds []string
-	for _, g := range corsina.Good {
+	for _, g := range corsina.Goods {
 		GoodIds = append(GoodIds, g.Id.String())
 	}
+	log.Println(GoodIds)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(Corsina{GoodIds: GoodIds})
+}
+
+type DeleteGood struct {
+	GoodId string `json:"good_id"`
+	UserId string `json:"user_id"`
+}
+
+func (us *Service) DeleteGoodFromCorsina(w http.ResponseWriter, r *http.Request) {
+	req := &DeleteGood{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Println("Не удалось разкодировать запрос", err)
+		return
+	}
+	UserUuid, err := uuid.Parse(req.UserId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	GoodUuid, err := uuid.Parse(req.GoodId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	good, err := us.goodrep.Get(r.Context(), GoodUuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить запись товара", err)
+		return
+	}
+	corsina, err := us.corsinarep.GetByUser(r.Context(), UserUuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить запись корзины", err)
+		return
+	}
+	var goods []Models.Good
+	for _, g := range corsina.Goods {
+		if g.Id != GoodUuid {
+			goods = append(goods, g)
+		}
+	}
+	corsina.Goods = goods
+	err = us.corsinarep.Update(r.Context(), corsina)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось добавить товар в корзину", err)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func generateRandomString(length int) string {

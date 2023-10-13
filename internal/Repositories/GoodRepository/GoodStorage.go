@@ -24,7 +24,7 @@ func (gs *GoodStorage) Create(ctx context.Context, g *Models.Good) error {
 
 func (gs *GoodStorage) Get(ctx context.Context, id uuid.UUID) (*Models.Good, error) {
 	g := new(Models.Good)
-	err := gs.db.Preload("Orders").WithContext(ctx).First(g, id).Error
+	err := gs.db.Preload("Orders").Preload("Corsinas").WithContext(ctx).First(g, id).Error
 	return g, err
 }
 
@@ -38,7 +38,7 @@ func (gs *GoodStorage) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (gs *GoodStorage) GetByName(ctx context.Context, name string) (bool, error) {
 	g := new(Models.Good)
-	err := gs.db.Preload("Orders").WithContext(ctx).Where("name = ?", name).First(&g).Error
+	err := gs.db.Preload("Orders").Preload("Corsinas").WithContext(ctx).Where("name = ?", name).First(&g).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Println("Запись логина не была найдена")
@@ -54,7 +54,7 @@ func (gs *GoodStorage) GetByName(ctx context.Context, name string) (bool, error)
 
 func (gs *GoodStorage) GetByType(ctx context.Context, gtype string) ([]*Models.Good, error) {
 	goods := []*Models.Good{}
-	err := gs.db.Preload("Orders").WithContext(ctx).Where("good_type = ?", gtype).Find(&goods).Error
+	err := gs.db.Preload("Orders").Preload("Corsinas").WithContext(ctx).Where("good_type = ?", gtype).Find(&goods).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Println("Товары по типу", gtype, "не были найдены")
