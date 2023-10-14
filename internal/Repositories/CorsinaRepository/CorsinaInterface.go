@@ -11,4 +11,6 @@ type CorsinaRepository interface {
 	Get(ctx context.Context, id uuid.UUID) (*Models.Corsina, error)
 	Update(ctx context.Context, g *Models.Corsina) error
 	GetByUser(ctx context.Context, userId uuid.UUID) (*Models.Corsina, error)
+	DeleteAllGoods(ctx context.Context, c *Models.Corsina) error
+	Delete(ctx context.Context, c *Models.Corsina, g []*Models.Good) error
 }

@@ -32,6 +32,14 @@ func (cs *CorsinaStorage) Update(ctx context.Context, c *Models.Corsina) error {
 }
 func (cs *CorsinaStorage) GetByUser(ctx context.Context, userId uuid.UUID) (*Models.Corsina, error) {
 	c := new(Models.Corsina)
-	err := cs.db.Preload("Goods").WithContext(ctx).Where("usr_id = ?", userId).First(&c).Error
+	err := cs.db.Preload("Goods").WithContext(ctx).Where("usr_id = ?", userId).First(c).Error
 	return c, err
+}
+func (cs *CorsinaStorage) DeleteAllGoods(ctx context.Context, c *Models.Corsina) error {
+	err := cs.db.Model(c).WithContext(ctx).Association("Goods").Clear()
+	return err
+}
+
+func (cs *CorsinaStorage) Delete(ctx context.Context, c *Models.Corsina, g []*Models.Good) error {
+	return cs.db.Model(c).WithContext(ctx).Association("Goods").Delete(&g)
 }

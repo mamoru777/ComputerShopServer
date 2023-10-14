@@ -12,5 +12,5 @@ type GoodRepository interface {
 	GetByName(ctx context.Context, name string) (bool, error)
 	GetByType(ctx context.Context, gtype string) ([]*Models.Good, error)
 	Update(ctx context.Context, g *Models.Good) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, corsina *Models.Corsina, good *Models.Good) error
 }

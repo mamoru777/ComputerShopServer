@@ -32,13 +32,13 @@ func (gs *GoodStorage) Update(ctx context.Context, g *Models.Good) error {
 	return gs.db.WithContext(ctx).Save(g).Error
 }
 
-func (gs *GoodStorage) Delete(ctx context.Context, id uuid.UUID) error {
-	return gs.db.WithContext(ctx).Delete(&Models.Good{Id: id}).Error
+func (gs *GoodStorage) Delete(ctx context.Context, corsina *Models.Corsina, good *Models.Good) error {
+	return gs.db.Model(good).WithContext(ctx).Association("Corsinas").Delete(corsina)
 }
 
 func (gs *GoodStorage) GetByName(ctx context.Context, name string) (bool, error) {
 	g := new(Models.Good)
-	err := gs.db.Preload("Orders").Preload("Corsinas").WithContext(ctx).Where("name = ?", name).First(&g).Error
+	err := gs.db.Preload("Orders").Preload("Corsinas").WithContext(ctx).Where("name = ?", name).First(g).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			log.Println("Запись логина не была найдена")

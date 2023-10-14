@@ -70,7 +70,8 @@ func (us *Service) GetHandler() http.Handler {
 
 	router.HandleFunc("/corsina/addgood", us.AddGoodToCorsina).Methods(http.MethodPatch)
 	router.HandleFunc("/corsina/getcorsina", us.GetCorsina).Methods(http.MethodGet)
-	router.HandleFunc("/order/deletegood").Methods(http.MethodPatch)
+	router.HandleFunc("/order/deletegood", us.DeleteGoodFromCorsina).Methods(http.MethodPatch)
+	router.HandleFunc("/order/deleteallgoods", us.DeleteAllFromCorsinsa).Methods(http.MethodPatch)
 	/*header := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	method := handlers.AllowedMethods([]string{"POST"})
 	origins := handlers.AllowedOrigins([]string{"*"})*/
@@ -982,21 +983,92 @@ func (us *Service) DeleteGoodFromCorsina(w http.ResponseWriter, r *http.Request)
 		log.Println("Не удалось получить запись корзины", err)
 		return
 	}
-	var goods []Models.Good
+	var goods []*Models.Good
+	goods = append(goods, good)
+	/*var goods []Models.Good
 	for _, g := range corsina.Goods {
 		if g.Id != GoodUuid {
 			goods = append(goods, g)
 		}
 	}
-	corsina.Goods = goods
-	err = us.corsinarep.Update(r.Context(), corsina)
+	corsina.Goods = goods*/
+	/*err = us.goodrep.Delete(r.Context(), corsina, good)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Println("Не удалось добавить товар в корзину", err)
+		log.Println("Не удалось удалить товар из корзины", err)
+		return
+	}*/
+	err = us.corsinarep.Delete(r.Context(), corsina, goods)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось удалить товар из корзины", err)
 		return
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+type DeleteAllGoods struct {
+	UserId string `json:"user_id"`
+}
+
+func (us *Service) DeleteAllFromCorsinsa(w http.ResponseWriter, r *http.Request) {
+	log.Println("Использована функция удаления всех товаров из корзины")
+	req := &DeleteAllGoods{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Println("Не удалось разкодировать запрос", err)
+		return
+	}
+	UserUuid, err := uuid.Parse(req.UserId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось конвертировать строку в uuid", err)
+		return
+	}
+	log.Println(UserUuid)
+	corsina, err := us.corsinarep.GetByUser(r.Context(), UserUuid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось получить запись корзины", err)
+		return
+	}
+	var goodsToRemove []*Models.Good
+	for _, g := range corsina.Goods {
+		gCopy := g
+		goodsToRemove = append(goodsToRemove, &gCopy)
+	}
+	err = us.corsinarep.Delete(r.Context(), corsina, goodsToRemove)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось удалить все товары из корзины", err)
+		return
+	}
+	/*for _, g := range goodsToRemove {
+		err = us.corsinarep.Delete(r.Context(), corsina, g)
+		log.Println("Использована функция удаления товара ", g.Id)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println("Не удалось удалить все товары из корзины", err)
+			return
+		}
+	}
+	for _, g := range goodsToRemove {
+		err = us.goodrep.Delete(r.Context(), corsina, g)
+		log.Println("Использована функция удаления товара ", g.Id)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println("Не удалось удалить все товары из корзины", err)
+			return
+		}
+	}*/
+	/*err = us.corsinarep.DeleteAllGoods(r.Context(), corsina)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Не удалось удалить все товары из корзины", err)
+		return
+	}*/
+	w.WriteHeader(http.StatusOK)
 }
 
 func generateRandomString(length int) string {
